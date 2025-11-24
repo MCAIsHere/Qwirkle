@@ -1,12 +1,11 @@
 import cv2 as cv
 import numpy as np
 
-def show_image(title,image):
+def show_image(image,title="ad"):
     image=cv.resize(image,(0,0),fx=0.3,fy=0.3)
     cv.imshow(title,image)
     cv.waitKey(0)
     cv.destroyAllWindows()
-
 def extrage_careu(image):
     hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
 
@@ -22,11 +21,11 @@ def extrage_careu(image):
     # Highlight the non-brown regions
     highlight = img.copy()
     highlight[not_brown_mask > 0] = (0, 255, 0)  # mark non-brown pixels
-    show_image('image_sharpened', highlight)
+    show_image(highlight,'image_sharpened')
 
     # Detectam marginile (50–100 det mai multe margini; 300-600 det mai putine margini)
     edges = cv.Canny(highlight, 200, 300)
-    show_image('edges', edges)
+    show_image(edges,'edges')
     # analizează o imagine binară (0 și 255) și caută forme închise sau margini continue.
     contours, _ = cv.findContours(edges, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)
     max_area = 0
@@ -65,7 +64,7 @@ def extrage_careu(image):
     cv.circle(image_copy, tuple(top_right), 20, (0, 0, 255), -1)
     cv.circle(image_copy, tuple(bottom_left), 20, (0, 0, 255), -1)
     cv.circle(image_copy, tuple(bottom_right), 20, (0, 0, 255), -1)
-    show_image("detected corners", image_copy)
+    show_image(image_copy,"detected corners")
 
     source = np.array([top_left, bottom_left, top_right, bottom_right], dtype="float32")
     dest = np.array([[0, 0], [0, height], [width, 0], [width, height]], dtype="float32")
@@ -73,15 +72,6 @@ def extrage_careu(image):
     result = cv.warpPerspective(image, M, (width, height))
 
     return result
-img = cv.imread('antrenare/5_20.jpg')
-img = cv.resize(img, (1600, 1600), interpolation=cv.INTER_AREA)
-careu = extrage_careu(img)
-show_image("Careu afisare",careu)
-
-patratele = []
-for i in range(0,1600,100):
-    for j in range(0,1600,100):
-        patratele.append(careu[i:i+100,j:j+100])
 
 def diagonal_detector(patratele):
     template = cv.imread("Piese/doi.jpg",0)
@@ -107,35 +97,30 @@ def color_detector(patrat):
     if 90 <= h <= 120: return "B"
     if 165 <= h: return "R"
 def form_detector(patrat):
-    patrat_hsv = cv.cvtColor(patrat, cv.COLOR_BGR2HSV)
-    V = patrat_hsv[:,:,2]
-    S = patrat_hsv[:,:,1]
-    V_mean = np.mean(V)
-    S_mean = np.mean(S)
+    patrat_gray = cv.cvtColor(patrat, cv.COLOR_BGR2GRAY)
 
-    if V_mean > 150 and S_mean < 130:
-        return '-'
-    else:
-        lista_corr = []
-        patrat_gray = cv.cvtColor(patrat, cv.COLOR_BGR2GRAY)
-        patrat_gray = cv.adaptiveThreshold(patrat_gray,255,cv.ADAPTIVE_THRESH_GAUSSIAN_C,cv.THRESH_BINARY,21,4)
-        for i in range(1,7):
-            piece_template = cv.imread(f"Piese/forma_{i}.jpg",0)
-            piece_template = cv.GaussianBlur(piece_template,(5,5),0)
-            _, piece_template = cv.threshold(piece_template,40,255,cv.THRESH_BINARY + cv.THRESH_OTSU)
-            kernel = np.ones((3,3), dtype="uint8")
-            piece_template = cv.morphologyEx(piece_template,cv.MORPH_OPEN,kernel)
+    detect = patrat_gray.copy()
+    detect = cv.resize(detect[2:99, 2:99], (100,100), interpolation=cv.INTER_CUBIC)
+    detect[detect < 80] = 0
+    if np.mean(detect) > 129: return '-'
 
-            max_corr = -1
-            for rotate in range(4):
-                corr = cv.matchTemplate(patrat_gray, piece_template, cv.TM_CCOEFF_NORMED)
-                piece_template = cv.rotate(piece_template,cv.ROTATE_90_CLOCKWISE)
+    patrat_gray = cv.resize(patrat_gray[10:91, 10:91], (100,100), interpolation=cv.INTER_CUBIC)
+    max_corr = -1
+    max_corr_index = -1
 
+    for index in range(1,7):
+        template = cv.imread("Piese/f" + str(index) + ".jpg",0)
+        template = cv.resize(template, (100,100), interpolation=cv.INTER_CUBIC)
+        corr = cv.matchTemplate(patrat_gray, template, cv.TM_CCOEFF_NORMED)
 
-                if corr > max_corr: max_corr = corr
-            lista_corr.append(max_corr)
+        if corr > max_corr:
+            max_corr_index = index
+            max_corr = corr
 
-        return int(np.argmax(lista_corr))+1
+    if max_corr <= 0.1: return "-"
+
+    return color_detector(patrat)
+
 def detectare_piesa(patratele):
     rez = []
     for i in range(16):
@@ -145,15 +130,25 @@ def detectare_piesa(patratele):
         rez.append(row)
     return rez
 
+
+#########################################
+img = cv.imread('antrenare/2_20.jpg')
+img = cv.resize(img, (1600, 1600), interpolation=cv.INTER_AREA)
+careu = extrage_careu(img)
+show_image(careu,"Careu afisare")
+
+patratele = []
+for i in range(0,1600,100):
+    for j in range(0,1600,100):
+        patratele.append(careu[i:i+100,j:j+100])
+
 matrice = detectare_piesa(patratele)
 for linie in matrice:
     print(linie)
 
-# fk = cv.imread("image.png",0)
-# fk = cv.resize(fk,(100,100),interpolation=cv.INTER_AREA)
-# cv.imwrite("Piese/forma_1.jpg", fk)
-
-
+# bruh = cv.imread("Piese/f6.jpg", 1)
+# bruh = cv.resize(bruh, (100,100),interpolation=cv.INTER_CUBIC)
+# cv.imwrite("Piese/f6.jpg", bruh)
 
 
 ####################################
