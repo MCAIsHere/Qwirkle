@@ -1,7 +1,8 @@
 import cv2 as cv
 import numpy as np
 
-def show_image(image,title="ad"):
+
+def show_image(image,title="image"):
     image=cv.resize(image,(0,0),fx=0.3,fy=0.3)
     cv.imshow(title,image)
     cv.waitKey(0)
@@ -72,7 +73,6 @@ def extrage_careu(image):
     result = cv.warpPerspective(image, M, (width, height))
 
     return result
-
 def diagonal_detector(patratele):
     template = cv.imread("Piese/doi.jpg",0)
     pozitii = [17,25,145,153]
@@ -104,22 +104,21 @@ def form_detector(patrat):
     detect[detect < 80] = 0
     if np.mean(detect) > 129: return '-'
 
-    patrat_gray = cv.resize(patrat_gray[10:91, 10:91], (100,100), interpolation=cv.INTER_CUBIC)
+    patrat_gray = cv.resize(patrat_gray[10:91, 10:91], (100,100), interpolation=cv.INTER_LINEAR)
+
     max_corr = -1
     max_corr_index = -1
-
-    for index in range(1,7):
+    for index in range(1,31):
         template = cv.imread("Piese/f" + str(index) + ".jpg",0)
-        template = cv.resize(template, (100,100), interpolation=cv.INTER_CUBIC)
-        corr = cv.matchTemplate(patrat_gray, template, cv.TM_CCOEFF_NORMED)
+        template = cv.resize(template, (100,100), interpolation=cv.INTER_LINEAR)
 
+        corr = cv.matchTemplate(patrat_gray, template, cv.TM_CCOEFF_NORMED)
         if corr > max_corr:
             max_corr_index = index
             max_corr = corr
 
-    if max_corr <= 0.1: return "-"
-
-    return color_detector(patrat)
+    if max_corr < 0.35: return "-"
+    return (max_corr_index-1)%6 + 1
 
 def detectare_piesa(patratele):
     rez = []
@@ -132,6 +131,7 @@ def detectare_piesa(patratele):
 
 
 #########################################
+
 img = cv.imread('antrenare/2_20.jpg')
 img = cv.resize(img, (1600, 1600), interpolation=cv.INTER_AREA)
 careu = extrage_careu(img)
@@ -145,11 +145,6 @@ for i in range(0,1600,100):
 matrice = detectare_piesa(patratele)
 for linie in matrice:
     print(linie)
-
-# bruh = cv.imread("Piese/f6.jpg", 1)
-# bruh = cv.resize(bruh, (100,100),interpolation=cv.INTER_CUBIC)
-# cv.imwrite("Piese/f6.jpg", bruh)
-
 
 ####################################
 
