@@ -86,7 +86,14 @@ def diagonal_detector(patratele):
             rez.append("principala")
         print(result)
     return rez
-def color_detector(patrat):
+def piece_detector(patrat):
+    patrat_gray = cv.cvtColor(patrat, cv.COLOR_BGR2GRAY)
+    patrat_gray = cv.resize(patrat_gray[2:99, 2:99], (100,100), interpolation=cv.INTER_CUBIC)
+    if np.sum(patrat_gray < 80) < 3000:
+        return '-'
+    else:
+        return 'X'
+def color_classifier(patrat):
     patrat_hsv = cv.cvtColor(patrat, cv.COLOR_BGR2HSV)
     h, s, v = patrat_hsv[50][50]
     if 0 <= s <= 40 and 70 <= v: return "W"
@@ -96,43 +103,44 @@ def color_detector(patrat):
     if 55 <= h <= 80: return "G"
     if 90 <= h <= 120: return "B"
     if 165 <= h: return "R"
-def form_detector(patrat):
+def piece_classifier(patrat):
     patrat_gray = cv.cvtColor(patrat, cv.COLOR_BGR2GRAY)
-
-    detect = patrat_gray.copy()
-    detect = cv.resize(detect[2:99, 2:99], (100,100), interpolation=cv.INTER_CUBIC)
-    detect[detect < 80] = 0
-    if np.mean(detect) > 129: return '-'
-
-    patrat_gray = cv.resize(patrat_gray[10:91, 10:91], (100,100), interpolation=cv.INTER_LINEAR)
+    patrat_gray = cv.resize(patrat_gray[10:91, 10:91], (100, 100), interpolation=cv.INTER_LINEAR)
 
     max_corr = -1
     max_corr_index = -1
-    for index in range(1,31):
-        template = cv.imread("Piese/f" + str(index) + ".jpg",0)
-        template = cv.resize(template, (100,100), interpolation=cv.INTER_LINEAR)
+    for index in range(1, 31):
+        template = cv.imread("Piese/f" + str(index) + ".jpg", 0)
+        template = cv.resize(template, (100, 100), interpolation=cv.INTER_LINEAR)
 
         corr = cv.matchTemplate(patrat_gray, template, cv.TM_CCOEFF_NORMED)
         if corr > max_corr:
             max_corr_index = index
             max_corr = corr
 
-    if max_corr < 0.35: return "-"
-    return (max_corr_index-1)%6 + 1
+    # show_image(patrat_gray)
+    # template = cv.imread("Piese/f" + str(max_corr_index) + ".jpg", 0)
+    # show_image(template)
+    # print(max_corr[0][0])
 
-def detectare_piesa(patratele):
+    if max_corr < 0.3: return "-"
+    return (max_corr_index - 1) % 6 + 1
+
+def parcurgere_piese(patratele):
     rez = []
     for i in range(16):
         row = []
         for j in range(16):
-            row.append(form_detector(patratele[i*16+j]))
+            row.append(piece_detector(patratele[i*16+j]))
+            if piece_detector(patratele[i*16+j]) == 'X':
+                print([piece_classifier(patratele[i*16+j]),color_classifier(patratele[i*16+j])])
         rez.append(row)
     return rez
 
 
 #########################################
 
-img = cv.imread('antrenare/2_20.jpg')
+img = cv.imread('antrenare/5_20.jpg')
 img = cv.resize(img, (1600, 1600), interpolation=cv.INTER_AREA)
 careu = extrage_careu(img)
 show_image(careu,"Careu afisare")
@@ -142,7 +150,7 @@ for i in range(0,1600,100):
     for j in range(0,1600,100):
         patratele.append(careu[i:i+100,j:j+100])
 
-matrice = detectare_piesa(patratele)
+matrice = parcurgere_piese(patratele)
 for linie in matrice:
     print(linie)
 
