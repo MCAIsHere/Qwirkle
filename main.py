@@ -1,7 +1,6 @@
 import cv2 as cv
 import numpy as np
 
-
 def show_image(image,title="image"):
     image=cv.resize(image,(0,0),fx=0.3,fy=0.3)
     cv.imshow(title,image)
@@ -80,16 +79,15 @@ def diagonal_detector(patratele):
     for pozitie in pozitii:
         pozitie_gray = cv.cvtColor(patratele[pozitie],cv.COLOR_BGR2GRAY)
         result = cv.matchTemplate(pozitie_gray, template, cv.TM_CCOEFF_NORMED)
-        if result > 0.1:
+        if result > 0.4:
             rez.append("secundara")
         else:
             rez.append("principala")
-        print(result)
     return rez
 def piece_detector(patrat):
     patrat_gray = cv.cvtColor(patrat, cv.COLOR_BGR2GRAY)
     patrat_gray = cv.resize(patrat_gray[2:99, 2:99], (100,100), interpolation=cv.INTER_CUBIC)
-    if np.sum(patrat_gray < 80) < 3000:
+    if np.sum(patrat_gray < 80) < 3200:
         return '-'
     else:
         return 'X'
@@ -109,9 +107,8 @@ def piece_classifier(patrat):
 
     max_corr = -1
     max_corr_index = -1
-    for index in range(1, 31):
+    for index in range(1, 109):
         template = cv.imread("Piese/f" + str(index) + ".jpg", 0)
-        template = cv.resize(template, (100, 100), interpolation=cv.INTER_LINEAR)
 
         corr = cv.matchTemplate(patrat_gray, template, cv.TM_CCOEFF_NORMED)
         if corr > max_corr:
@@ -125,52 +122,114 @@ def piece_classifier(patrat):
 
     if max_corr < 0.3: return "-"
     return (max_corr_index - 1) % 6 + 1
+def score_calculator(VALORI, piese_noi):
+    rows_checked = set()
+    cols_checked = set()
+    score = 0
 
-def parcurgere_piese(patratele):
-    rez = []
-    for i in range(16):
-        row = []
-        for j in range(16):
-            row.append(piece_detector(patratele[i*16+j]))
-            if piece_detector(patratele[i*16+j]) == 'X':
-                print([piece_classifier(patratele[i*16+j]),color_classifier(patratele[i*16+j])])
-        rez.append(row)
-    return rez
+    for piesa_noua in piese_noi:
+        # VERTICAL
+        if piesa_noua[0] not in rows_checked:
+            streak = 0
+
+            index = piesa_noua[0]-1
+            while index >= 0 and VALORI[index][piesa_noua[1]] == 'X':
+                streak += 1
+                index -= 1
+            index = piesa_noua[0]+1
+            while index <= 15 and VALORI[index][piesa_noua[1]] == 'X':
+                streak += 1
+                index += 1
+
+            score += streak
+            if streak != 0: score += 1
+            if streak == 5: score += 6
+        # ORIZONTAL
+        if piesa_noua[1] not in cols_checked:
+            streak = 0
+
+            index = piesa_noua[1]-1
+            while index >= 0 and VALORI[piesa_noua[0]][index] == 'X':
+                streak += 1
+                index -= 1
+            index = piesa_noua[1]+1
+            while index <= 15 and VALORI[piesa_noua[0]][index] == 'X':
+                streak += 1
+                index += 1
+
+            score += streak
+            if streak != 0: score += 1
+            if streak == 5: score += 6
+        rows_checked.add(piesa_noua[0])
+        cols_checked.add(piesa_noua[1])
+    return score
+
 
 
 #########################################
+PHOTO_SERIE = 5
+VALORI = [['-' for _ in range(16)] for _ in range(16)]
 
-img = cv.imread('antrenare/5_20.jpg')
-img = cv.resize(img, (1600, 1600), interpolation=cv.INTER_AREA)
-careu = extrage_careu(img)
-show_image(careu,"Careu afisare")
+for photo_index in range(21):
+    PHOTO_INDEX_STR = str(photo_index) if photo_index >= 10 else "0"+str(photo_index)
 
-patratele = []
-for i in range(0,1600,100):
-    for j in range(0,1600,100):
-        patratele.append(careu[i:i+100,j:j+100])
+    img = cv.imread('antrenare/' + str(PHOTO_SERIE) + "_" + PHOTO_INDEX_STR + ".jpg")
+    img = cv.resize(img, (1600, 1600), interpolation=cv.INTER_AREA)
+    careu = extrage_careu(img)
+    show_image(careu, "Careu afisare")
 
-matrice = parcurgere_piese(patratele)
-for linie in matrice:
-    print(linie)
+    patratele = []
+    for i in range(0, 1600, 100):
+        for j in range(0, 1600, 100):
+            patratele.append(careu[i:i + 100, j:j + 100])
 
-####################################
+    if photo_index == 0:
+        diagonale = diagonal_detector(patratele)
+        spacing = [[0, 0], [0, 8], [8, 0], [8, 8]]
+        for square in range(4):
+            x = spacing[square][0]
+            y = spacing[square][1]
+            if diagonale[square] == "principala":
+                for i in range(1, 7):
+                    VALORI[i + x][i + y] = 'X'
+                for i in range(1, 6):
+                    VALORI[i + x][i + 1 + y] = '1'
+                    VALORI[i + 1 + x][i + y] = '1'
+                VALORI[1 + x][6 + y] = '2'
+                VALORI[6 + x][1 + y] = '2'
+            else:
+                for i in range(1, 7):
+                    VALORI[i + x][7 + y - i] = 'X'
+                for i in range(1, 6):
+                    VALORI[i + x][7 + y - i - 1] = '1'
+                    VALORI[i + 1 + x][7 + y - i] = '1'
+                VALORI[1 + x][1 + y] = '2'
+                VALORI[6 + x][6 + y] = '2'
+    else:
+        piese_noi = []
+        scor = 0
+        for i in range(16):
+            for j in range(16):
+                if VALORI[i][j] != 'X' and piece_detector(patratele[i*16+j]) == 'X':
+                    piese_noi.append([i,j])
 
-# PHOTO_SERIE = 1
-# VALUORI = [['-' for _ in range(16)] for _ in range(16)]
-#
-# for i in range(21):
-#     img = cv.imread('antrenare/' + str(PHOTO_SERIE) + f"_{i}.jpg")
-#     img = cv.resize(img, (1600, 1600), interpolation=cv.INTER_AREA)
-#     careu = extrage_careu(img)
-#
-#     patratele = []
-#     for i in range(0, 1600, 100):
-#         for j in range(0, 1600, 100):
-#             patratele.append(careu[i:i + 100, j:j + 100])
-#
-#     if i == 0:
-#         diagonale = diagonal_detector(patratele)
+                    if VALORI[i][j] == '1': scor += 1
+                    elif VALORI[i][j] == '2': scor += 2
+
+                    VALORI[i][j] = 'X'
+        scor += score_calculator(VALORI,piese_noi)
+
+        # Afiseaza in fisier locatia / tipul, dupa scorul
+        with open(f"result/{PHOTO_SERIE}_{PHOTO_INDEX_STR}.txt", "w") as file:
+            for piesa in piese_noi:
+                file.write(f"{piesa[0]+1}{chr(piesa[1]+ord('A'))} "
+                           f"{piece_classifier(patratele[piesa[0]*16+piesa[1]])}{color_classifier(patratele[piesa[0]*16+piesa[1]])}\n")
+            file.write(str(scor))
+
+    if photo_index == 2:
+        for linie in VALORI:
+            print(linie)
+        break
 
 
 
