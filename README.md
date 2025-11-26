@@ -1,6 +1,6 @@
 # Libraries used:
-opencv-python == 4.12.0.88
-numpy == 2.2.6
+opencv-python == 4.12.0.88;
+numpy == 2.2.6;
 python == 3.0+
 # How to run the script:
 There is a variable called *PHOTO_SERIE* that keeps the serie id for the 21 upcoming photos.
