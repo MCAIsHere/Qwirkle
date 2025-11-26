@@ -9,26 +9,24 @@ def show_image(image,title="image"):
 def extrage_careu(image):
     hsv = cv.cvtColor(image, cv.COLOR_BGR2HSV)
 
-    # Brown HSV range
     lower_brown = np.array([0, 40, 30])
     upper_brown = np.array([25, 200, 200])
 
-    # Detect brown pixels
     brown_mask = cv.inRange(hsv, lower_brown, upper_brown)
-    # Anything NOT brown
+    kernel = np.ones((7, 7), np.uint8)
+    brown_mask = cv.morphologyEx(brown_mask, cv.MORPH_CLOSE, kernel)
+    brown_mask = cv.morphologyEx(brown_mask, cv.MORPH_OPEN, kernel)
     not_brown_mask = cv.bitwise_not(brown_mask)
 
-    # Highlight the non-brown regions
     highlight = image.copy()
-    highlight[not_brown_mask > 0] = (0, 255, 0)  # mark non-brown pixels
+    highlight[not_brown_mask > 0] = (0, 255, 0)
+    # show_image(highlight)
 
-    # Detectam marginile (50–100 det mai multe margini; 300-600 det mai putine margini)
     edges = cv.Canny(highlight, 200, 300)
-    # analizează o imagine binară (0 și 255) și caută forme închise sau margini continue.
+    # show_image(edges)
     contours, _ = cv.findContours(edges, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)
     max_area = 0
 
-    # Selecteaza cel mai mare patrat
     for i in range(len(contours)):
         if (len(contours[i]) > 3):
             possible_top_left = None
@@ -53,7 +51,7 @@ def extrage_careu(image):
                 top_right = possible_top_right
                 bottom_left = possible_bottom_left
 
-    # Alegem dimensiunea patratului scos (pentru quirkle ar fi 50x16 = 800)
+    # (50x16 = 800)
     width = 1600
     height = 1600
 
@@ -62,11 +60,12 @@ def extrage_careu(image):
     cv.circle(image_copy, tuple(top_right), 20, (0, 0, 255), -1)
     cv.circle(image_copy, tuple(bottom_left), 20, (0, 0, 255), -1)
     cv.circle(image_copy, tuple(bottom_right), 20, (0, 0, 255), -1)
-    show_image(image_copy,"detected corners")
+    # show_image(image_copy,"detected corners")
 
     source = np.array([top_left, bottom_left, top_right, bottom_right], dtype="float32")
     dest = np.array([[0, 0], [0, height], [width, 0], [width, height]], dtype="float32")
-    M = cv.getPerspectiveTransform(source, dest)  # Creaza matricea de transformare
+
+    M = cv.getPerspectiveTransform(source, dest)
     result = cv.warpPerspective(image, M, (width, height))
 
     return result
@@ -105,7 +104,7 @@ def piece_classifier(patrat):
 
     max_corr = -1
     max_corr_index = -1
-    for index in range(1, 8):
+    for index in range(1, 13):
         template = cv.imread("Piese/f" + str(index) + ".jpg", 0)
 
         corr = cv.matchTemplate(patrat_gray, template, cv.TM_CCOEFF_NORMED)
@@ -113,9 +112,9 @@ def piece_classifier(patrat):
             max_corr_index = index
             max_corr = np.max(corr)
 
-    show_image(patrat_gray)
-    template = cv.imread("Piese/f" + str(max_corr_index) + ".jpg", 0)
-    show_image(template)
+    # show_image(patrat_gray)
+    # template = cv.imread("Piese/f" + str(max_corr_index) + ".jpg", 0)
+    # show_image(template)
 
     if max_corr < 0.3: return "-"
     return (max_corr_index - 1) % 6 + 1
@@ -169,7 +168,7 @@ for photo_index in range(21):
     img = cv.imread('antrenare/' + str(PHOTO_SERIE) + "_" + PHOTO_INDEX_STR + ".jpg")
     img = cv.resize(img, (1600, 1600), interpolation=cv.INTER_AREA)
     careu = extrage_careu(img)
-    show_image(careu, "Careu afisare")
+    # show_image(careu, "Careu afisare")
 
     patratele = []
     for i in range(0, 1600, 100):
@@ -222,13 +221,11 @@ for photo_index in range(21):
                            f"{color_classifier(patratele[piesa[0]*16+piesa[1]])}\n")
             file.write(str(scor))
 
-        if photo_index == 10: break
-for linie in VALORI:
-    print(linie)
+# for linie in VALORI:
+#     print(linie)
 
-#
-# f = cv.imread("dede.png")
-# f = cv.resize(f,(100,100),cv.INTER_CUBIC)
-# cv.imwrite("Piese/f8.jpg", f)
+
+
+
 
 
