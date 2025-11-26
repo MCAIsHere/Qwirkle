@@ -10,8 +10,8 @@ The .txt files should appear into a folder called "result". If the folder doesn'
 
 with open(f"result/{PHOTO_SERIE}_{PHOTO_INDEX_STR}.txt", "w") as file: *(line 215)*
 
-Also make sure img = cv.imread('testare/' + str(PHOTO_SERIE) + "_" + PHOTO_INDEX_STR + ".jpg") *(line 168)* is pointing towards to right folder
 
+Also make sure img = cv.imread('testare/' + str(PHOTO_SERIE) + "_" + PHOTO_INDEX_STR + ".jpg") *(line 168)* is pointing towards to right folder.
 Each serie should take around 5-10 seconds to compile (at least from what I tested)
 
 ***Also I have to add that you need to run main.py but I believe you know that***
