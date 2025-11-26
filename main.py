@@ -7,7 +7,7 @@ def show_image(image,title="image"):
     cv.waitKey(0)
     cv.destroyAllWindows()
 def extrage_careu(image):
-    hsv = cv.cvtColor(img, cv.COLOR_BGR2HSV)
+    hsv = cv.cvtColor(image, cv.COLOR_BGR2HSV)
 
     # Brown HSV range
     lower_brown = np.array([0, 40, 30])
@@ -19,13 +19,11 @@ def extrage_careu(image):
     not_brown_mask = cv.bitwise_not(brown_mask)
 
     # Highlight the non-brown regions
-    highlight = img.copy()
+    highlight = image.copy()
     highlight[not_brown_mask > 0] = (0, 255, 0)  # mark non-brown pixels
-    show_image(highlight,'image_sharpened')
 
     # Detectam marginile (50–100 det mai multe margini; 300-600 det mai putine margini)
     edges = cv.Canny(highlight, 200, 300)
-    show_image(edges,'edges')
     # analizează o imagine binară (0 și 255) și caută forme închise sau margini continue.
     contours, _ = cv.findContours(edges, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)
     max_area = 0
@@ -79,10 +77,11 @@ def diagonal_detector(patratele):
     for pozitie in pozitii:
         pozitie_gray = cv.cvtColor(patratele[pozitie],cv.COLOR_BGR2GRAY)
         result = cv.matchTemplate(pozitie_gray, template, cv.TM_CCOEFF_NORMED)
-        if result > 0.4:
+        if result > 0.3:
             rez.append("secundara")
         else:
             rez.append("principala")
+        print(result)
     return rez
 def piece_detector(patrat):
     patrat_gray = cv.cvtColor(patrat, cv.COLOR_BGR2GRAY)
@@ -103,22 +102,20 @@ def color_classifier(patrat):
     if 165 <= h: return "R"
 def piece_classifier(patrat):
     patrat_gray = cv.cvtColor(patrat, cv.COLOR_BGR2GRAY)
-    patrat_gray = cv.resize(patrat_gray[10:91, 10:91], (100, 100), interpolation=cv.INTER_LINEAR)
 
     max_corr = -1
     max_corr_index = -1
-    for index in range(1, 109):
+    for index in range(1, 8):
         template = cv.imread("Piese/f" + str(index) + ".jpg", 0)
 
         corr = cv.matchTemplate(patrat_gray, template, cv.TM_CCOEFF_NORMED)
-        if corr > max_corr:
+        if np.max(corr) > max_corr:
             max_corr_index = index
-            max_corr = corr
+            max_corr = np.max(corr)
 
-    # show_image(patrat_gray)
-    # template = cv.imread("Piese/f" + str(max_corr_index) + ".jpg", 0)
-    # show_image(template)
-    # print(max_corr[0][0])
+    show_image(patrat_gray)
+    template = cv.imread("Piese/f" + str(max_corr_index) + ".jpg", 0)
+    show_image(template)
 
     if max_corr < 0.3: return "-"
     return (max_corr_index - 1) % 6 + 1
@@ -128,32 +125,30 @@ def score_calculator(VALORI, piese_noi):
     score = 0
 
     for piesa_noua in piese_noi:
-        # VERTICAL
         if piesa_noua[0] not in rows_checked:
             streak = 0
 
-            index = piesa_noua[0]-1
-            while index >= 0 and VALORI[index][piesa_noua[1]] == 'X':
+            index = piesa_noua[1] - 1
+            while index >= 0 and VALORI[piesa_noua[0]][index] == 'X':
                 streak += 1
                 index -= 1
-            index = piesa_noua[0]+1
-            while index <= 15 and VALORI[index][piesa_noua[1]] == 'X':
+            index = piesa_noua[1] + 1
+            while index <= 15 and VALORI[piesa_noua[0]][index] == 'X':
                 streak += 1
                 index += 1
 
             score += streak
             if streak != 0: score += 1
             if streak == 5: score += 6
-        # ORIZONTAL
         if piesa_noua[1] not in cols_checked:
             streak = 0
 
-            index = piesa_noua[1]-1
-            while index >= 0 and VALORI[piesa_noua[0]][index] == 'X':
+            index = piesa_noua[0] - 1
+            while index >= 0 and VALORI[index][piesa_noua[1]] == 'X':
                 streak += 1
                 index -= 1
-            index = piesa_noua[1]+1
-            while index <= 15 and VALORI[piesa_noua[0]][index] == 'X':
+            index = piesa_noua[0] + 1
+            while index <= 15 and VALORI[index][piesa_noua[1]] == 'X':
                 streak += 1
                 index += 1
 
@@ -163,8 +158,6 @@ def score_calculator(VALORI, piese_noi):
         rows_checked.add(piesa_noua[0])
         cols_checked.add(piesa_noua[1])
     return score
-
-
 
 #########################################
 PHOTO_SERIE = 5
@@ -215,22 +208,27 @@ for photo_index in range(21):
 
                     if VALORI[i][j] == '1': scor += 1
                     elif VALORI[i][j] == '2': scor += 2
-
                     VALORI[i][j] = 'X'
+
         scor += score_calculator(VALORI,piese_noi)
 
         # Afiseaza in fisier locatia / tipul, dupa scorul
         with open(f"result/{PHOTO_SERIE}_{PHOTO_INDEX_STR}.txt", "w") as file:
             for piesa in piese_noi:
+                x = piesa[0]
+                y = piesa[1]
                 file.write(f"{piesa[0]+1}{chr(piesa[1]+ord('A'))} "
-                           f"{piece_classifier(patratele[piesa[0]*16+piesa[1]])}{color_classifier(patratele[piesa[0]*16+piesa[1]])}\n")
+                           f"{piece_classifier(careu[max(0,x*100-30):min(1600,x*100+130), max(0,y*100-30):min(1600,y*100+130)])}"
+                           f"{color_classifier(patratele[piesa[0]*16+piesa[1]])}\n")
             file.write(str(scor))
 
-    if photo_index == 2:
-        for linie in VALORI:
-            print(linie)
-        break
+        if photo_index == 10: break
+for linie in VALORI:
+    print(linie)
 
-
+#
+# f = cv.imread("dede.png")
+# f = cv.resize(f,(100,100),cv.INTER_CUBIC)
+# cv.imwrite("Piese/f8.jpg", f)
 
 
