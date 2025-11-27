@@ -1,4 +1,5 @@
 # Libraries used:
+pip == 23.2.1;
 opencv-python == 4.12.0.88;
 numpy == 2.2.6;
 python == 3.0+

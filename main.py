@@ -52,8 +52,8 @@ def extrage_careu(image):
                 bottom_left = possible_bottom_left
 
     # (50x16 = 800)
-    width = 1600
-    height = 1600
+    width = 1800
+    height = 1800
 
     image_copy = cv.cvtColor(image.copy(), cv.COLOR_HSV2BGR)
     cv.circle(image_copy, tuple(top_left), 20, (0, 0, 255), -1)
@@ -63,7 +63,7 @@ def extrage_careu(image):
     # show_image(image_copy,"detected corners")
 
     source = np.array([top_left, bottom_left, top_right, bottom_right], dtype="float32")
-    dest = np.array([[0, 0], [0, height], [width, 0], [width, height]], dtype="float32")
+    dest = np.array([[100, 100], [100, height-100], [width-100, 100], [width-100, height-100]], dtype="float32")
 
     M = cv.getPerspectiveTransform(source, dest)
     result = cv.warpPerspective(image, M, (width, height))
@@ -112,9 +112,9 @@ def piece_classifier(patrat):
             max_corr_index = index
             max_corr = np.max(corr)
 
-    # show_image(patrat_gray)
-    # template = cv.imread("Piese/f" + str(max_corr_index) + ".jpg", 0)
-    # show_image(template)
+    show_image(patrat_gray)
+    template = cv.imread("Piese/f" + str(max_corr_index) + ".jpg", 0)
+    show_image(template)
 
     if max_corr < 0.3: return "-"
     return (max_corr_index - 1) % 6 + 1
@@ -159,20 +159,19 @@ def score_calculator(VALORI, piese_noi):
     return score
 
 #########################################
-PHOTO_SERIE = 5
+PHOTO_SERIE = 1
 VALORI = [['-' for _ in range(16)] for _ in range(16)]
 
 for photo_index in range(21):
     PHOTO_INDEX_STR = str(photo_index) if photo_index >= 10 else "0"+str(photo_index)
 
     img = cv.imread('antrenare/' + str(PHOTO_SERIE) + "_" + PHOTO_INDEX_STR + ".jpg")
-    img = cv.resize(img, (1600, 1600), interpolation=cv.INTER_AREA)
     careu = extrage_careu(img)
-    # show_image(careu, "Careu afisare")
+    show_image(careu, "Careu afisare")
 
     patratele = []
-    for i in range(0, 1600, 100):
-        for j in range(0, 1600, 100):
+    for i in range(100, 1700, 100):
+        for j in range(100, 1700, 100):
             patratele.append(careu[i:i + 100, j:j + 100])
 
     if photo_index == 0:
@@ -217,7 +216,7 @@ for photo_index in range(21):
                 x = piesa[0]
                 y = piesa[1]
                 file.write(f"{piesa[0]+1}{chr(piesa[1]+ord('A'))} "
-                           f"{piece_classifier(careu[max(0,x*100-30):min(1600,x*100+130), max(0,y*100-30):min(1600,y*100+130)])}"
+                           f"{piece_classifier(careu[max(0,x*100+100-30):min(1800,x*100+100+130), max(0,y*100+100-30):min(1800,y*100+100+130)])}"
                            f"{color_classifier(patratele[piesa[0]*16+piesa[1]])}\n")
             file.write(str(scor))
 
