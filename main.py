@@ -7,22 +7,24 @@ def show_image(image,title="image"):
     cv.waitKey(0)
     cv.destroyAllWindows()
 def extrage_careu(image):
-    hsv = cv.cvtColor(image, cv.COLOR_BGR2HSV)
+    image_hsv = cv.cvtColor(image, cv.COLOR_BGR2HSV)
 
-    lower_brown = np.array([0, 40, 30])
-    upper_brown = np.array([25, 200, 200])
+    low_brown = np.array([0, 40, 30])
+    high_brown = np.array([25, 200, 200])
+    brown_mask = cv.inRange(image_hsv, low_brown, high_brown)
 
-    brown_mask = cv.inRange(hsv, lower_brown, upper_brown)
     kernel = np.ones((7, 7), np.uint8)
     brown_mask = cv.morphologyEx(brown_mask, cv.MORPH_CLOSE, kernel)
     brown_mask = cv.morphologyEx(brown_mask, cv.MORPH_OPEN, kernel)
-    not_brown_mask = cv.bitwise_not(brown_mask)
 
-    highlight = image.copy()
-    highlight[not_brown_mask > 0] = (0, 255, 0)
+    brown_mask_inv = cv.bitwise_not(brown_mask)
+    # show_image(not_brown_mask)
+
+    img_copy = image.copy()
+    img_copy[brown_mask_inv != 0] = (0, 255, 0)
     # show_image(highlight)
 
-    edges = cv.Canny(highlight, 200, 300)
+    edges = cv.Canny(img_copy, 200, 300)
     # show_image(edges)
     contours, _ = cv.findContours(edges, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)
     max_area = 0
@@ -51,7 +53,7 @@ def extrage_careu(image):
                 top_right = possible_top_right
                 bottom_left = possible_bottom_left
 
-    # (50x16 = 800)
+    # (100x16 + 200 = 1800)
     width = 1800
     height = 1800
 
@@ -80,7 +82,7 @@ def diagonal_detector(patratele):
             rez.append("secundara")
         else:
             rez.append("principala")
-        print(result)
+        # print(result)
     return rez
 def piece_detector(patrat):
     patrat_gray = cv.cvtColor(patrat, cv.COLOR_BGR2GRAY)
@@ -92,7 +94,7 @@ def piece_detector(patrat):
 def color_classifier(patrat):
     patrat_hsv = cv.cvtColor(patrat, cv.COLOR_BGR2HSV)
     h, s, v = patrat_hsv[50][50]
-    if 0 <= s <= 40 and 70 <= v: return "W"
+    if s <= 40 and 70 <= v: return "W"
 
     if h <= 20: return "O"
     if 25 <= h <= 35: return "Y"
@@ -112,9 +114,9 @@ def piece_classifier(patrat):
             max_corr_index = index
             max_corr = np.max(corr)
 
-    show_image(patrat_gray)
-    template = cv.imread("Piese/f" + str(max_corr_index) + ".jpg", 0)
-    show_image(template)
+    # show_image(patrat_gray)
+    # template = cv.imread("Piese/f" + str(max_corr_index) + ".jpg", 0)
+    # show_image(template)
 
     if max_corr < 0.3: return "-"
     return (max_corr_index - 1) % 6 + 1
@@ -159,69 +161,68 @@ def score_calculator(VALORI, piese_noi):
     return score
 
 #########################################
-PHOTO_SERIE = 1
-VALORI = [['-' for _ in range(16)] for _ in range(16)]
+for PHOTO_SERIE in range(1,6):
+    VALORI = [['-' for _ in range(16)] for _ in range(16)]
 
-for photo_index in range(21):
-    PHOTO_INDEX_STR = str(photo_index) if photo_index >= 10 else "0"+str(photo_index)
+    for photo_index in range(21):
+        PHOTO_INDEX_STR = str(photo_index) if photo_index >= 10 else "0"+str(photo_index)
 
-    img = cv.imread('antrenare/' + str(PHOTO_SERIE) + "_" + PHOTO_INDEX_STR + ".jpg")
-    careu = extrage_careu(img)
-    show_image(careu, "Careu afisare")
+        img = cv.imread('antrenare/' + str(PHOTO_SERIE) + "_" + PHOTO_INDEX_STR + ".jpg")
+        careu = extrage_careu(img)
+        # show_image(careu, "Careu afisare")
 
-    patratele = []
-    for i in range(100, 1700, 100):
-        for j in range(100, 1700, 100):
-            patratele.append(careu[i:i + 100, j:j + 100])
+        patratele = []
+        for i in range(100, 1700, 100):
+            for j in range(100, 1700, 100):
+                patratele.append(careu[i:i + 100, j:j + 100])
 
-    if photo_index == 0:
-        diagonale = diagonal_detector(patratele)
-        spacing = [[0, 0], [0, 8], [8, 0], [8, 8]]
-        for square in range(4):
-            x = spacing[square][0]
-            y = spacing[square][1]
-            if diagonale[square] == "principala":
-                for i in range(1, 7):
-                    VALORI[i + x][i + y] = 'X'
-                for i in range(1, 6):
-                    VALORI[i + x][i + 1 + y] = '1'
-                    VALORI[i + 1 + x][i + y] = '1'
-                VALORI[1 + x][6 + y] = '2'
-                VALORI[6 + x][1 + y] = '2'
-            else:
-                for i in range(1, 7):
-                    VALORI[i + x][7 + y - i] = 'X'
-                for i in range(1, 6):
-                    VALORI[i + x][7 + y - i - 1] = '1'
-                    VALORI[i + 1 + x][7 + y - i] = '1'
-                VALORI[1 + x][1 + y] = '2'
-                VALORI[6 + x][6 + y] = '2'
-    else:
-        piese_noi = []
-        scor = 0
-        for i in range(16):
-            for j in range(16):
-                if VALORI[i][j] != 'X' and piece_detector(patratele[i*16+j]) == 'X':
-                    piese_noi.append([i,j])
+        if photo_index == 0:
+            diagonale = diagonal_detector(patratele)
+            spacing = [[0, 0], [0, 8], [8, 0], [8, 8]]
+            for square in range(4):
+                x = spacing[square][0]
+                y = spacing[square][1]
+                if diagonale[square] == "principala":
+                    for i in range(1, 7):
+                        VALORI[i + x][i + y] = 'X'
+                    for i in range(1, 6):
+                        VALORI[i + x][i + 1 + y] = '1'
+                        VALORI[i + 1 + x][i + y] = '1'
+                    VALORI[1 + x][6 + y] = '2'
+                    VALORI[6 + x][1 + y] = '2'
+                else:
+                    for i in range(1, 7):
+                        VALORI[i + x][7 + y - i] = 'X'
+                    for i in range(1, 6):
+                        VALORI[i + x][7 + y - i - 1] = '1'
+                        VALORI[i + 1 + x][7 + y - i] = '1'
+                    VALORI[1 + x][1 + y] = '2'
+                    VALORI[6 + x][6 + y] = '2'
+        else:
+            piese_noi = []
+            scor = 0
+            for i in range(16):
+                for j in range(16):
+                    if VALORI[i][j] != 'X' and piece_detector(patratele[i*16+j]) == 'X':
+                        piese_noi.append([i,j])
 
-                    if VALORI[i][j] == '1': scor += 1
-                    elif VALORI[i][j] == '2': scor += 2
-                    VALORI[i][j] = 'X'
+                        if VALORI[i][j] == '1': scor += 1
+                        elif VALORI[i][j] == '2': scor += 2
+                        VALORI[i][j] = 'X'
 
-        scor += score_calculator(VALORI,piese_noi)
+            scor += score_calculator(VALORI,piese_noi)
 
-        # Afiseaza in fisier locatia / tipul, dupa scorul
-        with open(f"result/{PHOTO_SERIE}_{PHOTO_INDEX_STR}.txt", "w") as file:
-            for piesa in piese_noi:
-                x = piesa[0]
-                y = piesa[1]
-                file.write(f"{piesa[0]+1}{chr(piesa[1]+ord('A'))} "
-                           f"{piece_classifier(careu[max(0,x*100+100-30):min(1800,x*100+100+130), max(0,y*100+100-30):min(1800,y*100+100+130)])}"
-                           f"{color_classifier(patratele[piesa[0]*16+piesa[1]])}\n")
-            file.write(str(scor))
+            # Afiseaza in fisier locatia / tipul, dupa scorul
+            with open(f"result/{PHOTO_SERIE}_{PHOTO_INDEX_STR}.txt", "w") as file:
+                for piesa in piese_noi:
+                    x = piesa[0]
+                    y = piesa[1]
+                    file.write(f"{piesa[0]+1}{chr(piesa[1]+ord('A'))} "
+                               f"{piece_classifier(careu[max(0,x*100+100-30):min(1800,x*100+100+130), max(0,y*100+100-30):min(1800,y*100+100+130)])}"
+                               f"{color_classifier(patratele[piesa[0]*16+piesa[1]])}\n")
+                file.write(str(scor))
 
-# for linie in VALORI:
-#     print(linie)
+    print("Seria " + str(PHOTO_SERIE) + " terminata.")
 
 
 
