@@ -18,15 +18,9 @@ def extrage_careu(image):
     brown_mask = cv.morphologyEx(brown_mask, cv.MORPH_OPEN, kernel)
 
     brown_mask_inv = cv.bitwise_not(brown_mask)
-    # show_image(not_brown_mask)
+    # show_image(brown_mask_inv)
 
-    img_copy = image.copy()
-    img_copy[brown_mask_inv != 0] = (0, 255, 0)
-    # show_image(highlight)
-
-    edges = cv.Canny(img_copy, 200, 300)
-    # show_image(edges)
-    contours, _ = cv.findContours(edges, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)
+    contours, _ = cv.findContours(brown_mask_inv, cv.RETR_LIST, cv.CHAIN_APPROX_SIMPLE)
     max_area = 0
 
     for i in range(len(contours)):
@@ -209,10 +203,8 @@ for PHOTO_SERIE in range(1,6):
                         if VALORI[i][j] == '1': scor += 1
                         elif VALORI[i][j] == '2': scor += 2
                         VALORI[i][j] = 'X'
-
             scor += score_calculator(VALORI,piese_noi)
 
-            # Afiseaza in fisier locatia / tipul, dupa scorul
             with open(f"result/{PHOTO_SERIE}_{PHOTO_INDEX_STR}.txt", "w") as file:
                 for piesa in piese_noi:
                     x = piesa[0]
